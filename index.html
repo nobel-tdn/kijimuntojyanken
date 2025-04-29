@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>じゃんけんAI キジムン</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ----- デスクトップ向けスタイル（元のまま） ----- */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    #game-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      align-items: flex-start;
+      background-color: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-width: 1000px;
+      margin: auto;
+    }
+    #left-panel, #right-panel {
+      flex: 1;
+      min-width: 400px;
+      margin: 10px;
+    }
+    #left-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #right-panel {
+      margin-top: 0px;
+    }
+    h1 {
+      color: #1d4ed8;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #4b5563;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 5px;
+    }
+    .choice-btn {
+      font-size: 26px;
+      padding: 12px 25px;
+      margin: 8px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: #e5e7eb;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .choice-btn:hover { background-color: #d1d5db; }
+    .choice-btn:active { transform: scale(0.95); }
+    .choice-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+    #bluff {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #c81e1e;
+      min-height: 24px;
+      font-weight: bold;
+      text-align: center;
+      background-color: #fee2e2;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #fca5a5;
+    }
+    #face-container { position: relative; margin-bottom: 15px; }
+    #face {
+      width: 200px;
+      display: block;
+      margin: 0 auto 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #ai-reasoning {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.3s, visibility 0.3s;
+      z-index: 10;
+    }
+    #face-container:hover #ai-reasoning {
+      visibility: visible;
+      opacity: 1;
+    }
+    #statusText {
+      font-size: 36px;
+      font-weight: bold;
+      margin: 15px 0;
+      text-align: center;
+    }
+    #result {
+      margin-top: 10px;
+      font-size: 20px;
+      min-height: 24px;
+      text-align: center;
+      font-weight: 500;
+    }
+    #history {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+    }
+    #statsInfo {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #444;
+      line-height: 1.6;
+    }
+    #settings {
+      background-color: #f9fafb;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      border: 1px solid #e5e7eb;
+    }
+    #settings label { margin-right: 10px; font-weight: 500; }
+    #settings select,
+    #settings input[type="checkbox"] { margin-right: 15px; }
+    #debug-info {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 15px;
+      line-height: 1.4;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px dashed #d1d5db;
+      padding: 5px;
+    }
+    #buttons button {
+      font-size: 24px;
+      padding: 10px 20px;
+      margin: 10px;
+      font-family: Arial, sans-serif;
+    }
+    #buttons button:hover { background-color: #e0e0e0; }
+
+    /* ↑ここまで元のCSS↑ */
+
+    /* チャートを縦に広めに */
+    #statsChart{
+      width: 100% !important;
+      height: 280px !important;
+    }
+    #userHistChart {
+      width: 50% !important;
+      height: 280px !important;
+      margin: 0 auto; /* 中央揃え */
+      display: block; /* 中央揃えのために必要 */
+    }
+
+    /* ----- スマホ向けレスポンシブ ----- */
+    @media (max-width: 600px) {
+      body { padding: 10px; }
+      #game-container {
+        flex-direction: column;
+        padding: 15px;
+      }
+      #left-panel, #right-panel {
+        min-width: auto;
+        width: 100%;
+        margin: 15px 0;
+      }
+      h1 { font-size: 20px; line-height: 1.2; }
+      .section-title { font-size: 16px; }
+      .choice-btn { font-size: 20px; padding: 10px 18px; margin: 6px; }
+      #statusText { font-size: 24px; }
+      #result { font-size: 18px; }
+      #history, #statsInfo { font-size: 14px; }
+      #bluff { font-size: 16px; padding: 6px; }
+      #face { width: 150px; }
+      #settings { padding: 10px; }
+      #settings label,
+      #settings select,
+      #settings input { font-size: 14px; }
+      #debug-info { font-size: 10px; max-height: 80px; }
+    #statsChart { 
+      height: 200px !important; /* 高さを適切に調整 */
+      width: 100% !important;    /* 横幅を90%にしてスマホ画面にフィット */
+      max-width: 400px;         /* 最大幅を400pxに制限 */
+      margin: 20px auto;        /* 上下余白20px、中央寄せ */
+      display: block;           /* 中央寄せのために必要 */
+    }
+    #userHistChart {
+      width: 100% !important;    /* 横幅を90%にして左右に余白 */
+      max-width: 400px;         /* 必要なら最大幅も制限 */
+      margin: 0px auto 20px;   /* 上余白20px、下余白20px、中央寄せ */
+      display: block; /* 中央寄せのために必要 */
+    }   
+      }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="left-panel">
+      <h1>VSッ!!じゃんけんキジムン！！<br>(先に30勝で勝利さー！)</h1>
+
+      <div id="settings" style="margin-bottom: 20px; text-align: left;">
+        <span class="section-title" style="border: none; margin-bottom: 5px;">設定</span><br>
+        <label for="difficulty">難易度:</label>
+        <select id="difficulty">
+          <option value="easy">易しい</option>
+          <option value="normal" selected>普通</option>
+          <option value="hard">難しい</option>
+          <option value="veryhard">超難しい</option>
+        </select>
+        <label for="show-reasoning">キジムンの考えを見る:</label>
+        <input type="checkbox" id="show-reasoning">
+      </div>
+      <div id="bluff">キジムン: よーし、じゃんけんするさー！</div>
+      <div id="face-container">
+        <img id="face" src="" alt="キジムンの表情">
+        <span id="ai-reasoning">キジムンの考え</span>
+        <div id="statusText">勝負さー！</div>
+        <div id="result">あなた vs キジムン</div>  
+        <div id="hand-images" style="display:flex; justify-content:center; gap:20px; margin-top:10px;">
+            <img id="user-hand" src="" alt="あなたの手" width="80" height="80">
+            <span style="font-size: 24px; font-weight: bold; align-self: center;">VS</span>
+            <img id="ai-hand"   src="" alt="キジムンの手" width="80" height="80">
+        </div>
+      </div>
+      <div id="buttons" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+        <button class="choice-btn" data-choice="グー">👊 グー</button>
+        <button class="choice-btn" data-choice="チョキ">✌️ チョキ</button>
+        <button class="choice-btn" data-choice="パー">🖐️ パー</button>
+      </div>
+
+      <div id="history">履歴: 勝ち(0), 負け(0), あいこ(0)</div>
+      <div id="statsInfo">
+        勝率: あなた 0.0% / キジムン 0.0%<br>
+        最大連勝: あなた 0 回, キジムン 0 回<br>
+        現在のパターン長: 1
+      </div>
+      <div id="debug-info" style="text-align: left;">デバッグ情報:</div>
+    </div>
+
+    <div id="right-panel">
+      <div class="section-title" style="margin-top: 0px;">統計グラフ</div>
+      <canvas id="statsChart"></canvas>
+      <div class="section-title" style="margin-top: 30px;">あなたの手の傾向</div>
+      <canvas id="userHistChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // --- 定数定義 ---
+    const CHOICES = ['グー', 'チョキ', 'パー'];
+    const COUNTER_MAP = { 'グー': 'パー', 'チョキ': 'グー', 'パー': 'チョキ' };
+    const WIN_TARGET = 30;
+
+    // --- 手画像の URL マップ追加 ---
+    const USER_HAND_IMAGES = {
+    'グー':  'https://i.imgur.com/cLcVghg.png',
+    'チョキ':'https://i.imgur.com/vKcKjfs.png',
+    'パー':  'https://i.imgur.com/WrNhJFY.png'
+    };
+    const AI_HAND_IMAGES = {
+    'グー':  'https://i.imgur.com/pddAFX0.png',
+    'チョキ':'https://i.imgur.com/Ck8uJzj.png',
+    'パー':  'https://i.imgur.com/hWtNynY.png'
+    };
+    const userHandEl = document.getElementById('user-hand');
+    const aiHandEl   = document.getElementById('ai-hand');
+
+
+    // 難易度別パラメータ (前回と同じ)
+    const DIFFICULTY_SETTINGS = {
+        easy:   { initialEpsilon: 0.7,  epsilonDecay: 0.99, minEpsilon: 0.2,  initialMaxPattern: 1, patternGrowthRate: 0.01, maxPatternCap: 2, adaptThreshold: 0.5, metaWeightPattern: 0.4, metaWeightFreq: 0.4, metaWeightWinLoss: 0.2 },
+        normal: { initialEpsilon: 0.5,  epsilonDecay: 0.97, minEpsilon: 0.1,  initialMaxPattern: 2, patternGrowthRate: 0.02, maxPatternCap: 4, adaptThreshold: 0.3, metaWeightPattern: 0.5, metaWeightFreq: 0.3, metaWeightWinLoss: 0.2 },
+        hard:   { initialEpsilon: 0.3,  epsilonDecay: 0.96, minEpsilon: 0.05, initialMaxPattern: 3, patternGrowthRate: 0.03, maxPatternCap: 5, adaptThreshold: 0.2, metaWeightPattern: 0.6, metaWeightFreq: 0.2, metaWeightWinLoss: 0.2 },
+        veryhard:{ initialEpsilon: 0.2, epsilonDecay: 0.95, minEpsilon: 0.02, initialMaxPattern: 4, patternGrowthRate: 0.04, maxPatternCap: 6, adaptThreshold: 0.15, metaWeightPattern: 0.7, metaWeightFreq: 0.1, metaWeightWinLoss: 0.2 },
+    };
+
+    // === 画像URLをご指定のものに変更 ===
+    const IMG_HAPPY     = 'https://i.imgur.com/XIwk5uc.png'; // AI勝利
+    const IMG_SAD       = 'https://i.imgur.com/pbDebFC.png'; // プレイヤー勝利
+    const IMG_THINK     = 'https://i.imgur.com/VXzFi1K.png'; // あいこ・考え中
+    const IMG_FINAL_USER = 'https://i.imgur.com/GcezINz.png'; // 最終的にプレイヤー勝利
+    const IMG_FINAL_AI  = 'https://i.imgur.com/8H6y3m0.png'; // 最終的にAI勝利
+
+    // --- グローバル変数 (前回と同じ) ---
+    let userHistory = { 'グー': 0, 'チョキ': 0, 'パー': 0 };
+    let userSequence = [];
+    let patternMap = {};
+    let winLossHistory = [];
+    let userWins = 0, aiWins = 0, draws = 0;
+    let userStreak = 0, aiStreak = 0, maxUserStreak = 0, maxAiStreak = 0;
+    let currentMaxPattern;
+    let epsilon;
+    let gameSettings;
+    let lastUserDistribution = { 'グー': 0, 'チョキ': 0, 'パー': 0 };
+    let roundsPlayed = 0;
+    let aiReasoning = "";
+    let strategicBluff = "";
+
+    // --- UI要素 (前回と同じ) ---
+    const bluffEl = document.getElementById('bluff');
+    const faceEl = document.getElementById('face');
+    const aiReasoningEl = document.getElementById('ai-reasoning');
+    const statusTextEl = document.getElementById('statusText');
+    const resultEl = document.getElementById('result');
+    const historyEl = document.getElementById('history');
+    const statsInfoEl = document.getElementById('statsInfo');
+    const debugInfoEl = document.getElementById('debug-info');
+    const choiceBtns = document.querySelectorAll('.choice-btn');
+    const difficultySelect = document.getElementById('difficulty');
+    const showReasoningCheckbox = document.getElementById('show-reasoning');
+
+    // --- Chart.js 初期化 (ここに変更はありません) ---
+    const statsCtx = document.getElementById('statsChart').getContext('2d');
+    let statsChart = null; // 後で初期化
+    const userHistCtx = document.getElementById('userHistChart').getContext('2d');
+    let userHistChart = null; // 後で初期化
+    let committedAiChoice = null;
+
+    function initializeCharts() {
+    // 既存のチャートがあれば破棄
+    if (statsChart)     statsChart.destroy();
+  if (userHistChart)  userHistChart.destroy();
+
+  const maxValue = Math.max(userWins, aiWins, draws);
+ 
+  // 棒グラフ
+  statsChart = new Chart(statsCtx, {
+    type: 'bar',
+    data: {
+      labels: ['あなたの勝ち', 'キジムンの勝ち', 'あいこ'],
+      datasets: [{
+        label: '勝負回数',
+        data: [userWins, aiWins, draws],
+        backgroundColor: ['#ef4444', '#3b82f6', '#6b7280']
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            font: { size: 14 }   // 凡例の文字サイズ固定
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { size: 12 }   // X軸ラベル固定
+          }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax: maxValue + 5, // Y軸の最大値を設定
+          ticks: {
+            precision: 0,
+            font: { size: 12 }   // Y軸ラベル固定
+          }
+        }
+      },
+      layout: {
+        padding: {
+          top: 10,
+          bottom: 10
+        }
+      }
+    }
+  });
+
+  // ドーナツグラフ
+  userHistChart = new Chart(userHistCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['グー', 'チョキ', 'パー'],
+      datasets: [{
+        label: 'あなたの手の内訳',
+        data: [userHistory['グー'], userHistory['チョキ'], userHistory['パー']],
+        backgroundColor: ['#f87171', '#fbbf24', '#34d399']
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            font: { size: 14 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const data = context.dataset.data;
+              const total = data.reduce((s, v) => s + v, 0);
+              const pct = total ? (context.parsed / total * 100).toFixed(1) : '0.0';
+              return `${context.label}: ${pct}%`;
+            }
+          }
+        }
+      }
+      // scales はドーナツに不要なので省略
+    }
+  });
+}
+
+
+
+    // --- 関数定義 ---
+
+    /**
+     * ゲームの初期化またはリセット
+     */
+    function initGame() {
+        // 変数リセット
+        committedAiChoice = null;  // ← 追加
+        userHistory = { 'グー': 0, 'チョキ': 0, 'パー': 0 };
+        userSequence = [];
+        patternMap = {};
+        winLossHistory = [];
+        userWins = 0; aiWins = 0; draws = 0;
+        userStreak = 0; aiStreak = 0; maxUserStreak = 0; maxAiStreak = 0;
+        roundsPlayed = 0;
+        lastUserDistribution = { 'グー': 0, 'チョキ': 0, 'パー': 0 };
+        aiReasoning = "さあ、始めるよー！";
+        strategicBluff = "キジムン: よーし、じゃんけんするさー！";
+
+        // 難易度設定
+        gameSettings = DIFFICULTY_SETTINGS[difficultySelect.value];
+        epsilon = gameSettings.initialEpsilon;
+        currentMaxPattern = gameSettings.initialMaxPattern;
+
+        // UI初期化
+        initializeCharts(); // チャートもここで初期化
+        updateUI('勝負さー！', '', '');
+        faceEl.src = IMG_THINK;
+        choiceBtns.forEach(btn => btn.disabled = false);
+        debugLog("ゲーム初期化完了さー。難易度: " + difficultySelect.value);
+    }
+
+    // debugLog 関数は前回と同じ
+     function debugLog(message) {
+         const time = new Date().toLocaleTimeString();
+         // Check if debugInfoEl exists before manipulating it
+         if (debugInfoEl) {
+             debugInfoEl.innerHTML = `[${time}] ${message}<br>` + debugInfoEl.innerHTML;
+             const lines = debugInfoEl.innerHTML.split('<br>');
+             if (lines.length > 51) {
+                 debugInfoEl.innerHTML = lines.slice(0, 50).join('<br>');
+             }
+         } else {
+             console.log(`[DEBUG] ${message}`); // Fallback to console if element not found
+         }
+     }
+
+
+    // updateGameHistory 関数は前回と同じ
+     function updateGameHistory(userChoice) {
+        userHistory[userChoice]++;
+        userSequence.push(userChoice);
+        if (userSequence.length > currentMaxPattern + 1) {
+            userSequence.shift();
+        }
+        for (let len = 1; len <= Math.min(currentMaxPattern, userSequence.length - 1); len++) {
+            const patternKey = userSequence.slice(-len - 1, -1).join('_');
+            const nextChoice = userSequence[userSequence.length - 1];
+            if (!patternMap[patternKey]) {
+                patternMap[patternKey] = { 'グー': 0, 'チョキ': 0, 'パー': 0, 'count': 0 };
+            }
+            patternMap[patternKey][nextChoice]++;
+            patternMap[patternKey]['count']++;
+        }
+    }
+
+    // updateDynamicMaxPattern 関数は前回と同じ
+     function updateDynamicMaxPattern() {
+         const potentialMaxPattern = Math.floor(gameSettings.initialMaxPattern + roundsPlayed * gameSettings.patternGrowthRate);
+         currentMaxPattern = Math.min(potentialMaxPattern, gameSettings.maxPatternCap);
+     }
+
+    // detectStrategyChange 関数は前回と同じ（ログの口調のみ変更）
+    function detectStrategyChange() {
+        if (roundsPlayed < 10) return false;
+        const currentDistribution = {};
+        let total = 0;
+        for(const choice of CHOICES) {
+            currentDistribution[choice] = userHistory[choice];
+            total += userHistory[choice];
+        }
+        if (total === 0) return false;
+        let diffSum = 0;
+        for(const choice of CHOICES) {
+            const currentRate = currentDistribution[choice] / total;
+            const lastRate = (lastUserDistribution[choice] || 0) / (roundsPlayed -1 || 1) ;
+            diffSum += Math.pow(currentRate - lastRate, 2);
+        }
+        const changeMagnitude = Math.sqrt(diffSum);
+        lastUserDistribution = {...currentDistribution};
+
+        debugLog(`戦略変化チェック: 変化量=${changeMagnitude.toFixed(3)} (閾値: ${gameSettings.adaptThreshold})`);
+
+        if (changeMagnitude > gameSettings.adaptThreshold) {
+            debugLog("おっと、手の出し方が変わったさー？ ちょっと考え直すよー！ Epsilon上昇！");
+            epsilon = Math.min(1.0, epsilon * 1.5);
+            return true;
+        }
+        return false;
+    }
+
+    // assessOpponentRandomness 関数は前回と同じ（ログの口調のみ変更）
+     function assessOpponentRandomness() {
+         const total = roundsPlayed;
+         if (total < 5) return 0.5;
+         let entropy = 0;
+         for (const choice of CHOICES) {
+             const probability = userHistory[choice] / total;
+             if (probability > 0) {
+                 entropy -= probability * Math.log2(probability);
+             }
+         }
+         const normalizedEntropy = entropy / Math.log2(3);
+         debugLog(`相手のランダム性チェック: ${normalizedEntropy.toFixed(3)} (1に近いほどランダムさー)`);
+         return normalizedEntropy;
+     }
+
+
+    // predictUserChoice 関数は前回と同じ（ログの口調のみ変更）
+    function predictUserChoice() {
+        let predictions = {
+            pattern: { choice: null, confidence: 0, reason: "有効なパターンないさー" },
+            frequency: { choice: null, confidence: 0, reason: "まだデータないさー" },
+            winLoss: { choice: null, confidence: 0, reason: "勝敗データないさー" }
+        };
+        const totalPlays = roundsPlayed;
+        let bestPatternReason = predictions.pattern.reason;
+
+        for (let len = Math.min(userSequence.length, currentMaxPattern); len > 0; len--) {
+            const patternKey = userSequence.slice(-len).join('_');
+            if (patternMap[patternKey] && patternMap[patternKey]['count'] > 1) {
+                const counts = patternMap[patternKey];
+                let predicted = 'グー';
+                if (counts['チョキ'] > counts[predicted]) predicted = 'チョキ';
+                if (counts['パー'] > counts[predicted]) predicted = 'パー';
+                const confidence = (counts[predicted] / counts['count']) * (Math.log(counts['count'] + 1) / Math.log(totalPlays + 2));
+                if(confidence > predictions.pattern.confidence){
+                   const reason = `パターン(${patternKey})から予測 (信頼度: ${confidence.toFixed(2)})`;
+                   predictions.pattern = { choice: predicted, confidence: confidence, reason: reason };
+                   bestPatternReason = reason;
+                }
+            }
+        }
+         predictions.pattern.reason = bestPatternReason;
+
+
+        if (totalPlays > 0) {
+            let mostFrequent = 'グー';
+            if (userHistory['チョキ'] > userHistory[mostFrequent]) mostFrequent = 'チョキ';
+            if (userHistory['パー'] > userHistory[mostFrequent]) mostFrequent = 'パー';
+            const confidence = (userHistory[mostFrequent] / totalPlays);
+             predictions.frequency = {
+                choice: mostFrequent,
+                confidence: confidence,
+                reason: `みんなが出す手から予測 (${mostFrequent}が一番多いね、信頼度: ${confidence.toFixed(2)})`
+            };
+        }
+
+        if(winLossHistory.length > 0){
+            const lastOutcomeForUser = winLossHistory[winLossHistory.length-1][0];
+            let relevantHistory = {'グー': 0, 'チョキ': 0, 'パー': 0, 'count': 0};
+            for(let i = 0; i < winLossHistory.length - 1; i++){
+                if(winLossHistory[i][0] === lastOutcomeForUser){
+                    const nextUserChoice = winLossHistory[i+1][1];
+                    relevantHistory[nextUserChoice]++;
+                    relevantHistory['count']++;
+                }
+            }
+            if(relevantHistory['count'] > 1){
+                let predicted = 'グー';
+                if (relevantHistory['チョキ'] > relevantHistory[predicted]) predicted = 'チョキ';
+                if (relevantHistory['パー'] > relevantHistory[predicted]) predicted = 'パー';
+                const confidence = (relevantHistory[predicted] / relevantHistory['count']) * (Math.log(relevantHistory['count'] + 1) / Math.log(totalPlays + 2));
+                 predictions.winLoss = {
+                    choice: predicted,
+                    confidence: confidence,
+                    reason: `前回${lastOutcomeForUser}だった後の傾向から予測 (信頼度: ${confidence.toFixed(2)})`
+                };
+            } else {
+                 predictions.winLoss.reason = `前回${lastOutcomeForUser}だった後のデータがまだ少ないさー`;
+            }
+        }
+
+        const randomness = assessOpponentRandomness();
+        const patternWeight = gameSettings.metaWeightPattern * (1 - randomness);
+        const freqWeight = gameSettings.metaWeightFreq;
+        const winLossWeight = gameSettings.metaWeightWinLoss;
+
+        let finalPrediction = null;
+        let maxScore = -1;
+        let reason = "予測スコア:";
+        const weightedScores = {};
+
+        for(const choice of CHOICES) {
+            weightedScores[choice] = 0;
+            if(predictions.pattern.choice === choice) weightedScores[choice] += predictions.pattern.confidence * patternWeight;
+            if(predictions.frequency.choice === choice) weightedScores[choice] += predictions.frequency.confidence * freqWeight;
+            if(predictions.winLoss.choice === choice) weightedScores[choice] += predictions.winLoss.confidence * winLossWeight;
+            reason += ` ${choice}:${weightedScores[choice].toFixed(2)} `;
+            if (weightedScores[choice] > maxScore) {
+                maxScore = weightedScores[choice];
+                finalPrediction = choice;
+            }
+        }
+
+         if (maxScore < 0.1 || !finalPrediction) {
+             finalPrediction = predictions.frequency.choice || CHOICES[Math.floor(Math.random() * 3)];
+             reason += ` -> スコア低い/予測なし、頻度/ランダム採用`;
+         } else {
+             reason += ` -> 最終予測: ${finalPrediction}`;
+         }
+
+         debugLog(`予測: P(${predictions.pattern.choice || 'なし'}) F(${predictions.frequency.choice || 'なし'}) W(${predictions.winLoss.choice || 'なし'}) | Rnd:${randomness.toFixed(2)} -> ${finalPrediction || 'ランダム'}に決定`);
+
+        return { predicted: finalPrediction, reason: reason };
+    }
+
+    // chooseAIHand 関数は前回と同じ（ログの口調のみ変更）
+    function chooseAIHand(predictedChoice, predictionReason) {
+        let reason = "";
+        let aiChoice;
+
+        if (Math.random() < epsilon) {
+            aiChoice = CHOICES[Math.floor(Math.random() * 3)];
+            reason = `えいっ！ランダムで出すさー (ε=${epsilon.toFixed(3)})`;
+        } else {
+            if (predictedChoice) {
+                aiChoice = COUNTER_MAP[predictedChoice];
+                reason = `予測(${predictedChoice})に勝つ ${aiChoice} を出すさー！ (${predictionReason})`;
+            } else {
+                aiChoice = CHOICES[Math.floor(Math.random() * 3)];
+                reason = `うーん、読めないからランダムさー！`;
+            }
+        }
+        debugLog(`キジムンの手: ${aiChoice} (理由: ${reason})`);
+        return { aiChoice: aiChoice, reason: reason };
+    }
+
+    // determineOutcome 関数は前回と同じ
+    function determineOutcome(userChoice, aiChoice) {
+        if (userChoice === aiChoice) {
+            return '引き分け';
+        } else if (COUNTER_MAP[aiChoice] === userChoice) {
+            return '勝ち';
+        } else {
+            return '負け';
+        }
+    }
+
+    // updateGameState 関数は前回と同じ（ログの口調のみ変更）
+    function updateGameState(outcome, userChoice, aiChoice) {
+        roundsPlayed++;
+        winLossHistory.push([outcome, userChoice, aiChoice]);
+
+        if (outcome === '勝ち') {
+            userWins++;
+            userStreak++;
+            aiStreak = 0;
+            maxUserStreak = Math.max(maxUserStreak, userStreak);
+        } else if (outcome === '負け') {
+            aiWins++;
+            aiStreak++;
+            userStreak = 0;
+            maxAiStreak = Math.max(maxAiStreak, aiStreak);
+        } else {
+            draws++;
+            userStreak = 0;
+            aiStreak = 0;
+        }
+
+        epsilon = Math.max(gameSettings.minEpsilon, epsilon * gameSettings.epsilonDecay);
+         debugLog(`結果更新: Round ${roundsPlayed}, 結果: ${outcome}, ε: ${epsilon.toFixed(3)}`);
+    }
+
+    /**
+     * 戦略的なブラフを生成 (キジムン風)
+     */
+    function generateStrategicBluff(predictedChoice, lastAiChoice, lastUserChoice, lastOutcome) {
+        const bluffs = [];
+        bluffs.push(`キジムン: 次はおいら、${CHOICES[Math.floor(Math.random() * 3)]}をだすよ～！`);
+
+        if(predictedChoice){
+             bluffs.push(`キジムン: ふむふむ、次は${predictedChoice}で来るはずさー！`);
+             bluffs.push(`キジムン: ${predictedChoice}には、${COUNTER_MAP[predictedChoice]}さー！これどう？`);
+        }
+        if(lastOutcome === '負け' && lastUserChoice){
+             bluffs.push(`キジムン: うぐぐ、さっきの${lastUserChoice}は強かったさー！`);
+             bluffs.push(`キジムン: 同じ手(${lastUserChoice})にはもう引っかからないよー！`);
+        }
+         if(lastOutcome === '勝ち' && lastAiChoice){
+             bluffs.push(`キジムン: ${lastAiChoice}が決まったねー！もう一回いくさー？`);
+         }
+         if(aiStreak >= 2){
+              bluffs.push(`キジムン: ${aiStreak}連勝さー！ おいら絶好調だよー！`);
+         }
+         if(userStreak >= 2){
+              bluffs.push(`キジムン: ${userStreak}連勝とはやるねー！でも、次はおいらが勝つさー！`);
+         }
+
+        strategicBluff = bluffs[Math.floor(Math.random() * bluffs.length)];
+        debugLog(`ブラフ: ${strategicBluff}`);
+    }
+
+
+    /**
+     * UIを更新する (キジムン風テキスト)
+     */
+    function updateUI(outcome, userChoice, aiChoice) {
+        let imgSrc, statusColor;
+        let outcomeText = outcome;
+
+        if (outcome === '勝ち') {
+            imgSrc = IMG_SAD; statusColor = '#ef4444'; outcomeText = "あなたの勝ち！";
+        } else if (outcome === '負け') {
+            imgSrc = IMG_HAPPY; statusColor = '#3b82f6'; outcomeText = "負けてしまった…";
+        } else if (outcome === '引き分け') {
+            imgSrc = IMG_THINK; statusColor = '#6b7280'; outcomeText = "引き分け！";
+        } else {
+             imgSrc = IMG_THINK; statusColor = '#333';
+             outcomeText = outcome;
+        }
+        faceEl.src = imgSrc;
+        statusTextEl.textContent = outcomeText;
+        statusTextEl.style.color = statusColor;
+
+       
+        // テキスト表示
+        if (userChoice && aiChoice) {
+            resultEl.textContent = `あなた: ${userChoice} vs キジムン: ${aiChoice}`;
+            // 手画像を差し替え
+            userHandEl.src = USER_HAND_IMAGES[userChoice] || '';
+            aiHandEl.src   = AI_HAND_IMAGES[aiChoice]   || '';
+        } else {
+            resultEl.textContent = `あなた vs キジムン`;
+            // ラウンド前はクリア
+            userHandEl.src = '';
+            aiHandEl.src   = '';
+        }
+
+        historyEl.textContent = `履歴: 勝ち(${userWins}), 負け(${aiWins}), あいこ(${draws})`;
+
+        const total = userWins + aiWins + draws;
+        const userRate = total > 0 ? (userWins / total * 100).toFixed(1) : '0.0';
+        const aiRate = total > 0 ? (aiWins / total * 100).toFixed(1) : '0.0';
+        statsInfoEl.innerHTML =
+          `勝率: あなた ${userRate}% / キジムン ${aiRate}%<br>` +
+          `最大連勝: あなた ${maxUserStreak} 回, キジムン ${maxAiStreak} 回<br>` +
+          `現在のパターン長: ${currentMaxPattern} (ε: ${epsilon.toFixed(3)})`;
+
+        // グラフ更新
+        if (statsChart && userHistChart) { // チャートが初期化されているか確認
+            statsChart.data.datasets[0].data = [userWins, aiWins, draws];
+            statsChart.update();
+            userHistChart.data.datasets[0].data = [userHistory['グー'], userHistory['チョキ'], userHistory['パー']];
+            userHistChart.update();
+        }
+
+        // AI思考表示
+        aiReasoningEl.textContent = aiReasoning;
+        aiReasoningEl.style.visibility = showReasoningCheckbox.checked ? 'visible' : 'hidden';
+        aiReasoningEl.style.opacity = showReasoningCheckbox.checked ? '1' : '0';
+
+        // ブラフ表示
+        bluffEl.textContent = strategicBluff;
+    }
+
+    /**
+     * ゲーム終了かチェック (キジムン風テキスト)
+     */
+     function checkGameEnd() {
+    if (userWins >= WIN_TARGET || aiWins >= WIN_TARGET) {
+        // ボタンを全部無効化
+        choiceBtns.forEach(btn => btn.disabled = true);
+
+        // 勝者を判定
+        const winner = userWins >= WIN_TARGET ? 'あなた' : 'キジムン';
+
+        // 1) 改行入りでステータス表示
+        statusTextEl.innerHTML = `勝負あり！<br>${winner}の勝ちさー！`;
+        statusTextEl.style.color = winner === 'あなた' ? '#ef4444' : '#3b82f6';
+
+        // 2) 勝者に応じた最終画像をセット
+        faceEl.src = winner === 'あなた' ? IMG_FINAL_USER : IMG_FINAL_AI;
+
+        // 3) ブラフテキスト＆AI思考はそのまま更新
+        bluffEl.textContent = winner === 'あなた'
+            ? "キジムン: わー！負けちゃったさー！すごいねー！"
+            : "キジムン: やったー！おいらの勝ちさー！";
+        aiReasoning = "ゲーム終わりさー！";
+
+        // ログ出力
+        debugLog(`ゲーム終了さー。勝者: ${winner}`);
+        return true;
+    }
+    return false;
+}
+
+
+
+    /**
+     * 1ラウンド実行 (前回と同じ)
+     */
+    function playRound(userChoice) {
+    debugLog(`--- Round ${roundsPlayed + 1} 開始さー ---`);
+    debugLog(`あなたの手: ${userChoice}`);
+
+    updateGameHistory(userChoice);
+    detectStrategyChange();
+    updateDynamicMaxPattern();
+
+    // --- ① 現在ラウンドの AI の手を決める ---
+    let aiDecision;
+    if (committedAiChoice) {
+        // 前回約束した手をそのまま出す
+        aiDecision = {
+        aiChoice: committedAiChoice,
+        reason: ``
+        };
+        debugLog(`キジムンの手 (約束): ${aiDecision.aiChoice}`);
+    } else {
+        // 初回ラウンドか約束がない場合は通常ロジック
+        const prediction = predictUserChoice();
+        aiDecision = chooseAIHand(prediction.predicted, prediction.reason);
+    }
+
+    const outcome = determineOutcome(userChoice, aiDecision.aiChoice);
+    updateGameState(outcome, userChoice, aiDecision.aiChoice);
+
+    // --- ② 次ラウンドで出す手を予測してコミット ---
+    const nextPrediction = predictUserChoice();
+    const nextAiDecision = chooseAIHand(nextPrediction.predicted, nextPrediction.reason);
+    committedAiChoice = nextAiDecision.aiChoice;  // ← ここで約束
+
+    // “次戦では〇〇を出す予定さー！” のみ表示
+    aiReasoning = `次戦では${committedAiChoice}を出す予定さー！`;;
+
+    updateUI(outcome, userChoice, aiDecision.aiChoice);
+
+    if (!checkGameEnd()) {
+        generateStrategicBluff(/*…既存引数…*/);
+        bluffEl.textContent = strategicBluff;
+    }
+    debugLog(`--- Round ${roundsPlayed} 終了さー ---`);
+    }
+
+
+    // --- イベントリスナー (前回と同じ) ---
+    choiceBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playRound(btn.dataset.choice);
+      });
+    });
+
+    difficultySelect.addEventListener('change', initGame); // 難易度変更時にinitGameを呼び出す
+
+    showReasoningCheckbox.addEventListener('change', ()=>{
+         aiReasoningEl.style.visibility = showReasoningCheckbox.checked ? 'visible' : 'hidden';
+         aiReasoningEl.style.opacity = showReasoningCheckbox.checked ? '1' : '0';
+    });
+
+
+    // --- ゲーム開始 ---
+    // DOMContentLoaded を待ってから初期化するように変更
+    document.addEventListener('DOMContentLoaded', (event) => {
+        initGame();
+    });
+
+
+  </script>
+</body>
+</html>
